@@ -8,6 +8,7 @@ use Storable qw(dclone);
 
 our $VERSION = "1.5";
 our $VERBOSITY = 0;
+our $STRICT_MATCHING = 0;
 
 use constant {
 	STATE_OK => 0,
@@ -78,6 +79,11 @@ sub getHelpString{
         Currently the extra options 'sat' or 'scsi' are possible. This options
         are used to query SMART attributes behind Adaptec controllers. The
         options are only used if a device of type sg<X> is given.
+  [-s|--strict-match]
+        Turn on struct name matching.  The default matching algorithm allows partial
+        name matching, so if your specific device model name starts with a device
+        model name listed in the database it is considered a match.  When turning on
+        this option the full name must match the database value.
   [-v <Verbose Level>]
        be verbose
          (no -v) .. single line output
@@ -178,8 +184,12 @@ sub checkWhichDevice{
 				# Search for the model in the smart DB
 				my $found = 0;# We have not found the device yet
 				foreach (@{$devices_h->{$key}->{'Device'}}){
+					my $match_expr = qr/$_/;
+					if ($STRICT_MATCHING) {
+							$match_expr = qr/.*\Q$_\E$/;
+					}
 					# If the model matches we have found the correct db entry
-					if($currModel =~ $_){
+					if($currModel =~ /$match_expr/){
 						$found =1;
 						my %foundDevice_h;
 						# Clone the values from the JSON smart db, ensure to not work
@@ -515,6 +525,7 @@ MAIN: {
 			print getVersionString()."\n";
 			exit(STATE_OK);
 		},
+		's|strict-match' => sub { $STRICT_MATCHING = 1 }
 	)))	{
 		print getUsageString();
 		exit(STATE_UNKNOWN);
